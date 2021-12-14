@@ -5,6 +5,9 @@
 
 #include "FunctionManager.h"
 
+#include <GraphBLAS.h>
+#include <LAGraph.h>
+
 #include <boost/algorithm/string/replace.hpp>
 
 #include "common/base/Base.h"
@@ -417,6 +420,7 @@ std::unordered_map<std::string, std::vector<TypeSignature>> FunctionManager::typ
     {"duration",
      {TypeSignature({Value::Type::STRING}, Value::Type::DURATION),
       TypeSignature({Value::Type::MAP}, Value::Type::DURATION)}},
+    {"triangle_count", {TypeSignature({Value::Type::LIST}, Value::Type::INT)}},
 };
 
 // static
@@ -2708,6 +2712,91 @@ FunctionManager::FunctionManager() {
       }
     };
   }
+  {
+    auto &attr = functions_["triangle_count"];
+    attr.minArity_ = 1;
+    attr.maxArity_ = 1;
+    attr.isPure_ = true;
+    attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
+      if (args.size() != 1 || !args[0].get().isList()) {
+        return Value::kNullBadData;
+      }
+      auto edgeList = args[0].get().getList().values;
+      if (edgeList.size() < 3) {
+        return Value(0);
+      }
+
+      // collect each edge info
+      int64_t maxVid = 0;
+      std::vector<GrB_Index> srcs, dsts;
+      srcs.reserve(edgeList.size());
+      dsts.reserve(edgeList.size());
+      for (auto &value : edgeList) {
+        if (!value.isEdge()) {
+          return Value::kNullBadData;
+        }
+        auto &edge = value.getEdge();
+        if (!edge.src.isInt() || !edge.dst.isInt()) {
+          return Value::kNullBadData;
+        }
+        if (edge.type > 0) {
+          srcs.emplace_back(edge.src.getInt());
+          dsts.emplace_back(edge.dst.getInt());
+        } else {
+          srcs.emplace_back(edge.dst.getInt());
+          dsts.emplace_back(edge.src.getInt());
+        }
+        auto big = std::max(edge.src.getInt(), edge.dst.getInt());
+        if (big > maxVid) {
+          maxVid = big;
+        }
+      }
+
+      char msg[LAGRAPH_MSG_LEN];
+      LAGraph_Graph G = NULL;
+
+      LAGraph_Init(msg);
+      GrB_Matrix A = NULL;
+
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval;
+        return Value::kNullBadData;
+      }
+
+      std::vector<uint32_t> weights(edgeList.size(), 1U);
+      retval = GrB_Matrix_build_UINT32(A,
+                                       srcs.data(),
+                                       dsts.data(),
+                                       weights.data(),
+                                       static_cast<GrB_Index>(edgeList.size()),
+                                       GrB_LOR);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval;
+        return Value::kNullBadData;
+      }
+
+      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_UNDIRECTED, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      uint64_t numTriangles = 0;
+      retval = LAGraph_TriangleCount(&numTriangles, G, msg);
+
+      retval = LAGraph_Delete(&G, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      G = NULL;
+      LAGraph_Finalize(msg);
+
+      return Value(static_cast<int64_t>(numTriangles));
+    };
+  }
 }  // NOLINT
 
 // static
@@ -2730,7 +2819,8 @@ Status FunctionManager::find(const std::string &func, const size_t arity) {
   return result.value().isPure_;
 }
 
-/*static*/ StatusOr<const FunctionManager::FunctionAttributes> FunctionManager::getInternal(
+/*static*/
+StatusOr<const FunctionManager::FunctionAttributes> FunctionManager::getInternal(
     std::string func, size_t arity) const {
   // check existence
   std::transform(func.begin(), func.end(), func.begin(), ::tolower);
