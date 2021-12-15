@@ -5,8 +5,10 @@
 
 #include "FunctionManager.h"
 
+extern "C" {
 #include <GraphBLAS.h>
 #include <LAGraph.h>
+}
 
 #include <boost/algorithm/string/replace.hpp>
 

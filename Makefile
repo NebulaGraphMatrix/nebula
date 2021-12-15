@@ -23,4 +23,4 @@ clang:
 			-B build;
 
 build:
-	ninja -C build -j15
+	ninja -C build -j25

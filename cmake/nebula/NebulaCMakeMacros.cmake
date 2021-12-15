@@ -89,6 +89,7 @@ macro(nebula_link_libraries target)
         event
         double-conversion
         s2
+        gomp
         ${LAGRAPH_LIBRARIES}
         ${GRAPHBLAS_LIBRARIES}
         ${OPENSSL_SSL_LIBRARY}

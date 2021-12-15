@@ -111,12 +111,20 @@ if (${CMAKE_HOST_SYSTEM_PROCESSOR} MATCHES "x86_64")
 endif()
 
 find_package(GraphBLAS REQUIRED MODULE)
-include_directories (${GRAPHBLAS_INCLUDE_DIR})
+include_directories(${GRAPHBLAS_INCLUDE_DIR})
 find_package(LAGraph REQUIRED MODULE)
-include_directories (${LAGRAPH_INCLUDE_DIR})
+include_directories(${LAGRAPH_INCLUDE_DIR})
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L ${NEBULA_THIRDPARTY_ROOT}/lib")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L ${NEBULA_THIRDPARTY_ROOT}/lib64")
+
+find_package(OpenMP)
+if (OPENMP_FOUND)
+  add_compile_options(-fopenmp)
+  # link_libraries(-fopenmp)
+  include_directories(${OpenMP_C_INCLUDE_DIRS})
+endif()
+
 
 # All thrift libraries
 set(THRIFT_LIBRARIES
