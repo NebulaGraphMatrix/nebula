@@ -89,9 +89,8 @@ macro(nebula_link_libraries target)
         event
         double-conversion
         s2
-        lagraph
-        lagraphx
-        graphblas
+        ${LAGRAPH_LIBRARIES}
+        ${GRAPHBLAS_LIBRARIES}
         ${OPENSSL_SSL_LIBRARY}
         ${OPENSSL_CRYPTO_LIBRARY}
         ${KRB5_LIBRARIES}

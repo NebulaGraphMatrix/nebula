@@ -40,27 +40,33 @@ find_path(
 # "build" for a well known installation with unconventional naming.
 find_library(
   LAGRAPH_LIBRARY
-  NAMES
-    lagraph
-    lagraphx
+  NAMES lagraph_static
   PATHS ${LAGRAPH_ROOT}
-  PATH_SUFFIXES lib
+  PATH_SUFFIXES lib lib64
+  )
+
+find_library(
+  LAGRAPHX_LIBRARY
+  NAMES lagraphx_static
+  PATHS ${LAGRAPH_ROOT}
+  PATH_SUFFIXES lib lib64
   )
 
 # get version of .so using REALPATH
 get_filename_component(LAGRAPH_LIBRARY ${LAGRAPH_LIBRARY} REALPATH)
-string(
-  REGEX MATCH "[0-9]+.[0-9]+.[0-9]+"
-  LAGRAPH_VERSION
-  ${LAGRAPH_LIBRARY}
-  )
-set(LAGRAPH_LIBRARIES ${LAGRAPH_LIBRARY})
+get_filename_component(LAGRAPHX_LIBRARY ${LAGRAPHX_LIBRARY} REALPATH)
+# string(
+#   REGEX MATCH "[0-9]+.[0-9]+.[0-9]+"
+#   LAGRAPH_VERSION
+#   ${LAGRAPH_LIBRARY}
+#   )
+set(LAGRAPH_LIBRARIES ${LAGRAPH_LIBRARY} ${LAGRAPHX_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
   LAGraph
   REQUIRED_VARS LAGRAPH_LIBRARIES LAGRAPH_INCLUDE_DIR
-  VERSION_VAR LAGRAPH_VERSION
+  # VERSION_VAR LAGRAPH_VERSION
   )
 
 mark_as_advanced(

@@ -40,25 +40,25 @@ find_path(
 # "build" for a well known installation with unconventional naming.
 find_library(
   GRAPHBLAS_LIBRARY
-  NAMES graphblas
+  NAMES graphblas_static
   PATHS ${GRAPHBLAS_ROOT}
-  PATH_SUFFIXES lib build
+  PATH_SUFFIXES lib lib64
   )
 
 # get version of .so using REALPATH
 get_filename_component(GRAPHBLAS_LIBRARY ${GRAPHBLAS_LIBRARY} REALPATH)
-string(
-  REGEX MATCH "[0-9]+.[0-9]+.[0-9]+"
-  GRAPHBLAS_VERSION
-  ${GRAPHBLAS_LIBRARY}
-  )
+# string(
+#   REGEX MATCH "[0-9]+.[0-9]+.[0-9]+"
+#   GRAPHBLAS_VERSION
+#   ${GRAPHBLAS_LIBRARY}
+#   )
 set(GRAPHBLAS_LIBRARIES ${GRAPHBLAS_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
   GraphBLAS
   REQUIRED_VARS GRAPHBLAS_LIBRARIES GRAPHBLAS_INCLUDE_DIR
-  VERSION_VAR GRAPHBLAS_VERSION
+  # VERSION_VAR GRAPHBLAS_VERSION
   )
 
 mark_as_advanced(
