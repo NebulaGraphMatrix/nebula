@@ -2741,14 +2741,16 @@ FunctionManager::FunctionManager() {
         if (!edge.src.isInt() || !edge.dst.isInt()) {
           return Value::kNullBadData;
         }
+        auto src = edge.src.getInt() % GrB_INDEX_MAX;
+        auto dst = edge.dst.getInt() % GrB_INDEX_MAX;
         if (edge.type > 0) {
-          srcs.emplace_back(edge.src.getInt());
-          dsts.emplace_back(edge.dst.getInt());
+          srcs.emplace_back(src);
+          dsts.emplace_back(dst);
         } else {
-          srcs.emplace_back(edge.dst.getInt());
-          dsts.emplace_back(edge.src.getInt());
+          srcs.emplace_back(dst);
+          dsts.emplace_back(src);
         }
-        auto big = std::max(edge.src.getInt(), edge.dst.getInt());
+        auto big = static_cast<int64_t>(std::max(src, dst));
         if (big > maxVid) {
           maxVid = big;
         }
@@ -2760,9 +2762,10 @@ FunctionManager::FunctionManager() {
       LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
-      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
       if (retval != 0) {
-        LOG(ERROR) << "retval: " << retval;
+        LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
+                   << ", max GrB: " << GrB_INDEX_MAX;
         return Value::kNullBadData;
       }
 
@@ -2772,7 +2775,7 @@ FunctionManager::FunctionManager() {
                                        dsts.data(),
                                        weights.data(),
                                        static_cast<GrB_Index>(edgeList.size()),
-                                       GrB_LOR);
+                                       GrB_SECOND_UINT32);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval;
         return Value::kNullBadData;

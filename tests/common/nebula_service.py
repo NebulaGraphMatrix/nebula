@@ -67,7 +67,8 @@ class NebulaProcess(object):
 
     def start(self):
         cmd = self._format_nebula_command()
-        print("exec: " + cmd)
+        print("############ following service is starting ############")
+        print(cmd)
         p = subprocess.Popen([cmd], shell=True, stdout=subprocess.PIPE)
         p.wait()
         if p.returncode != 0:
