@@ -423,6 +423,7 @@ std::unordered_map<std::string, std::vector<TypeSignature>> FunctionManager::typ
      {TypeSignature({Value::Type::STRING}, Value::Type::DURATION),
       TypeSignature({Value::Type::MAP}, Value::Type::DURATION)}},
     {"triangle_count", {TypeSignature({Value::Type::LIST}, Value::Type::INT)}},
+    {"bfs", {TypeSignature({Value::Type::LIST, Value::Type::INT}, Value::Type::LIST)}},
 };
 
 // static
@@ -2731,29 +2732,8 @@ FunctionManager::FunctionManager() {
       // collect each edge info
       int64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      srcs.reserve(edgeList.size());
-      dsts.reserve(edgeList.size());
-      for (auto &value : edgeList) {
-        if (!value.isEdge()) {
-          return Value::kNullBadData;
-        }
-        auto &edge = value.getEdge();
-        if (!edge.src.isInt() || !edge.dst.isInt()) {
-          return Value::kNullBadData;
-        }
-        auto src = edge.src.getInt() % GrB_INDEX_MAX;
-        auto dst = edge.dst.getInt() % GrB_INDEX_MAX;
-        if (edge.type > 0) {
-          srcs.emplace_back(src);
-          dsts.emplace_back(dst);
-        } else {
-          srcs.emplace_back(dst);
-          dsts.emplace_back(src);
-        }
-        auto big = static_cast<int64_t>(std::max(src, dst));
-        if (big > maxVid) {
-          maxVid = big;
-        }
+      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+        return Value::kNullBadData;
       }
 
       char msg[LAGRAPH_MSG_LEN];
@@ -2781,7 +2761,7 @@ FunctionManager::FunctionManager() {
         return Value::kNullBadData;
       }
 
-      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_UNDIRECTED, msg);
+      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
         return Value::kNullBadData;
@@ -2802,7 +2782,135 @@ FunctionManager::FunctionManager() {
       return Value(static_cast<int64_t>(numTriangles));
     };
   }
+  {
+    auto &attr = functions_["bfs"];
+    attr.minArity_ = 1;
+    attr.maxArity_ = 2;
+    attr.isPure_ = true;
+    attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
+      if (args.size() != 2 || !args[0].get().isList() || !args[1].get().isInt()) {
+        return Value::kNullBadData;
+      }
+      auto edgeList = args[0].get().getList().values;
+
+      // collect each edge info
+      int64_t maxVid = 0;
+      std::vector<GrB_Index> srcs, dsts;
+      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+        return Value::kNullBadData;
+      }
+
+      char msg[LAGRAPH_MSG_LEN];
+      LAGraph_Graph G = NULL;
+
+      LAGraph_Init(msg);
+      GrB_Matrix A = NULL;
+
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
+                   << ", max GrB: " << GrB_INDEX_MAX;
+        return Value::kNullBadData;
+      }
+
+      std::vector<uint32_t> weights(edgeList.size(), 1U);
+      retval = GrB_Matrix_build_UINT32(A,
+                                       srcs.data(),
+                                       dsts.data(),
+                                       weights.data(),
+                                       static_cast<GrB_Index>(edgeList.size()),
+                                       GrB_SECOND_UINT32);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval;
+        return Value::kNullBadData;
+      }
+
+      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      GrB_Vector parents = NULL;
+      GrB_Vector levels = NULL;
+
+      auto src = args[1].get().getInt() % GrB_INDEX_MAX;
+      retval = LAGraph_BreadthFirstSearch(&levels, &parents, G, src, true, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      List result;
+      result.values.reserve(edgeList.size());
+      for (auto i = 0ul; i < edgeList.size(); ++i) {
+        int64_t lvl;
+        retval = GrB_Vector_extractElement_INT64(&lvl, levels, i);
+        if (retval != 0) {
+          return Value::kNullBadData;
+        }
+
+        int64_t parent;
+        retval = GrB_Vector_extractElement_INT64(&parent, parents, i);
+        if (retval != 0) {
+          return Value::kNullBadData;
+        }
+
+        Map m;
+        m.kvs.emplace("level", Value(lvl));
+        m.kvs.emplace("parent", Value(parent));
+        result.values.emplace_back(std::move(m));
+      }
+
+      retval = GrB_Vector_free(&levels);
+      CHECK_EQ(retval, 0);
+      retval = GrB_Vector_free(&parents);
+      CHECK_EQ(retval, 0);
+
+      retval = LAGraph_Delete(&G, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      G = NULL;
+      LAGraph_Finalize(msg);
+
+      return Value(std::move(result));
+    };
+  }
 }  // NOLINT
+
+bool FunctionManager::prepareEdges(const std::vector<Value> &edgeList,
+                                   std::vector<uint64_t> *srcs,
+                                   std::vector<uint64_t> *dsts,
+                                   int64_t *maxVid) {
+  srcs->reserve(edgeList.size());
+  dsts->reserve(edgeList.size());
+  for (auto &value : edgeList) {
+    if (!value.isEdge()) {
+      return false;
+    }
+    auto &edge = value.getEdge();
+    if (!edge.src.isInt() || !edge.dst.isInt()) {
+      return false;
+    }
+    auto src = edge.src.getInt() % GrB_INDEX_MAX;
+    auto dst = edge.dst.getInt() % GrB_INDEX_MAX;
+    if (edge.type > 0) {
+      srcs->emplace_back(src);
+      dsts->emplace_back(dst);
+    } else {
+      srcs->emplace_back(dst);
+      dsts->emplace_back(src);
+    }
+    auto big = static_cast<int64_t>(std::max(src, dst));
+    if (big > *maxVid) {
+      *maxVid = big;
+    }
+  }
+  return true;
+}
 
 // static
 StatusOr<FunctionManager::Function> FunctionManager::get(const std::string &func, size_t arity) {
