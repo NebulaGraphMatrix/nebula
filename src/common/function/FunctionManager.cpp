@@ -424,6 +424,8 @@ std::unordered_map<std::string, std::vector<TypeSignature>> FunctionManager::typ
       TypeSignature({Value::Type::MAP}, Value::Type::DURATION)}},
     {"triangle_count", {TypeSignature({Value::Type::LIST}, Value::Type::INT)}},
     {"bfs", {TypeSignature({Value::Type::LIST, Value::Type::INT}, Value::Type::LIST)}},
+    {"sssp",
+     {TypeSignature({Value::Type::LIST, Value::Type::INT, Value::Type::INT}, Value::Type::LIST)}},
 };
 
 // static
@@ -2865,6 +2867,93 @@ FunctionManager::FunctionManager() {
       retval = GrB_Vector_free(&levels);
       CHECK_EQ(retval, 0);
       retval = GrB_Vector_free(&parents);
+      CHECK_EQ(retval, 0);
+
+      retval = LAGraph_Delete(&G, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      G = NULL;
+      LAGraph_Finalize(msg);
+
+      return Value(std::move(result));
+    };
+  }
+  {
+    auto &attr = functions_["sssp"];
+    attr.minArity_ = 1;
+    attr.maxArity_ = 3;
+    attr.isPure_ = true;
+    attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
+      if (args.size() != 3 || !args[0].get().isList() || !args[1].get().isInt() ||
+          !args[2].get().isInt()) {
+        return Value::kNullBadData;
+      }
+      auto edgeList = args[0].get().getList().values;
+
+      // collect each edge info
+      int64_t maxVid = 0;
+      std::vector<GrB_Index> srcs, dsts;
+      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+        return Value::kNullBadData;
+      }
+
+      char msg[LAGRAPH_MSG_LEN];
+      LAGraph_Graph G = NULL;
+
+      LAGraph_Init(msg);
+      GrB_Matrix A = NULL;
+
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
+                   << ", max GrB: " << GrB_INDEX_MAX;
+        return Value::kNullBadData;
+      }
+
+      std::vector<uint32_t> weights(edgeList.size(), 1U);
+      retval = GrB_Matrix_build_UINT32(A,
+                                       srcs.data(),
+                                       dsts.data(),
+                                       weights.data(),
+                                       static_cast<GrB_Index>(edgeList.size()),
+                                       GrB_SECOND_UINT32);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval;
+        return Value::kNullBadData;
+      }
+
+      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      GrB_Vector pathLength = NULL;
+
+      auto src = args[1].get().getInt() % GrB_INDEX_MAX;
+      auto delta = args[2].get().getInt();
+      retval = LAGraph_SingleSourceShortestPath(&pathLength, G, src, delta, true, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      List result;
+      result.values.reserve(edgeList.size());
+      for (auto i = 0ul; i < edgeList.size(); ++i) {
+        int64_t len;
+        retval = GrB_Vector_extractElement_INT64(&len, pathLength, i);
+        if (retval != 0) {
+          return Value::kNullBadData;
+        }
+
+        result.values.emplace_back(len);
+      }
+
+      retval = GrB_Vector_free(&pathLength);
       CHECK_EQ(retval, 0);
 
       retval = LAGraph_Delete(&G, msg);
