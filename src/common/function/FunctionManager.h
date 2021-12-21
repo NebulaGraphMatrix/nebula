@@ -89,7 +89,12 @@ class FunctionManager final {
   static bool prepareEdges(const std::vector<Value> &edges,
                            std::vector<uint64_t> *srcs,
                            std::vector<uint64_t> *dsts,
-                           int64_t *maxVid);
+                           int64_t *maxVid,
+                           std::unordered_map<uint64_t, uint64_t> *idMap = nullptr);
+
+  static bool prepareVertices(const std::vector<Value> &vertices,
+                              std::vector<uint64_t> *srcs,
+                              std::unordered_map<uint64_t, uint64_t> *idMap = nullptr);
 
   static std::unordered_map<std::string, std::vector<TypeSignature>> typeSignature_;
 
