@@ -8,6 +8,7 @@
 extern "C" {
 #include <GraphBLAS.h>
 #include <LAGraph.h>
+#include <LAGraphX.h>
 }
 
 #include <boost/algorithm/string/replace.hpp>
@@ -426,7 +427,9 @@ std::unordered_map<std::string, std::vector<TypeSignature>> FunctionManager::typ
     {"bfs", {TypeSignature({Value::Type::LIST, Value::Type::INT}, Value::Type::LIST)}},
     {"sssp",
      {TypeSignature({Value::Type::LIST, Value::Type::INT, Value::Type::INT}, Value::Type::LIST)}},
-    {"betweenness", {TypeSignature({Value::Type::LIST}, Value::Type::LIST)}},
+    {"betweenness", {TypeSignature({Value::Type::LIST, Value::Type::LIST}, Value::Type::LIST)}},
+    {"cdlp",
+     {TypeSignature({Value::Type::LIST, Value::Type::INT, Value::Type::BOOL}, Value::Type::LIST)}},
 };
 
 // static
@@ -2735,7 +2738,7 @@ FunctionManager::FunctionManager() {
       // collect each edge info
       int64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
         return Value::kNullBadData;
       }
 
@@ -2800,7 +2803,7 @@ FunctionManager::FunctionManager() {
       int64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
       std::unordered_map<GrB_Index, uint64_t> idMap;
-      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
+      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
         return Value::kNullBadData;
       }
 
@@ -2905,7 +2908,7 @@ FunctionManager::FunctionManager() {
       // collect each edge info
       int64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
         return Value::kNullBadData;
       }
 
@@ -2983,10 +2986,10 @@ FunctionManager::FunctionManager() {
   {
     auto &attr = functions_["betweenness"];
     attr.minArity_ = 1;
-    attr.maxArity_ = 1;
+    attr.maxArity_ = 2;
     attr.isPure_ = true;
     attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
-      if (args.size() != 1 || !args[0].get().isList()) {
+      if (args.size() != 1 || !args[0].get().isList() || !args[1].get().isList()) {
         return Value::kNullBadData;
       }
       auto edgeList = args[0].get().getList().values;
@@ -2994,7 +2997,7 @@ FunctionManager::FunctionManager() {
       // collect each edge info
       int64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
         return Value::kNullBadData;
       }
 
@@ -3056,6 +3059,98 @@ FunctionManager::FunctionManager() {
       }
 
       retval = GrB_Vector_free(&centrality);
+      CHECK_EQ(retval, 0);
+
+      retval = LAGraph_Delete(&G, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      G = NULL;
+      LAGraph_Finalize(msg);
+
+      return Value(std::move(result));
+    };
+  }
+  {
+    auto &attr = functions_["cdlp"];
+    attr.minArity_ = 1;
+    attr.maxArity_ = 3;
+    attr.isPure_ = true;
+    attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
+      if (args.size() != 3 || !args[0].get().isList() || !args[1].get().isInt() ||
+          !args[2].get().isBool()) {
+        return Value::kNullBadData;
+      }
+      auto edgeList = args[0].get().getList().values;
+
+      // collect each edge info
+      int64_t maxVid = 0;
+      std::vector<GrB_Index> srcs, dsts;
+      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+        return Value::kNullBadData;
+      }
+
+      char msg[LAGRAPH_MSG_LEN];
+      LAGraph_Graph G = NULL;
+
+      LAGraph_Init(msg);
+      GrB_Matrix A = NULL;
+
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
+                   << ", max GrB: " << GrB_INDEX_MAX;
+        return Value::kNullBadData;
+      }
+
+      std::vector<uint32_t> weights(edgeList.size(), 1U);
+      retval = GrB_Matrix_build_UINT32(A,
+                                       srcs.data(),
+                                       dsts.data(),
+                                       weights.data(),
+                                       static_cast<GrB_Index>(edgeList.size()),
+                                       GrB_SECOND_UINT32);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval;
+        return Value::kNullBadData;
+      }
+
+      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      GrB_Vector CDLP = NULL;
+      GrB_Type CDLP_type = NULL;
+      auto itermax = args[1].get().getInt();
+      auto symmetric = args[2].get().getBool();
+      double timing[2];
+      retval = LAGraph_cdlp(&CDLP, &CDLP_type, A, symmetric, true, itermax, timing);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      GrB_Index n;
+      retval = GrB_Vector_size(&n, CDLP);
+      CHECK_EQ(retval, 0);
+
+      List result;
+      result.values.reserve(n);
+      for (auto i = 0ul; i < n; ++i) {
+        uint64_t c;
+        retval = GrB_Vector_extractElement_UINT64(&c, CDLP, i);
+        if (retval != 0) {
+          return Value::kNullBadData;
+        }
+
+        result.values.emplace_back(static_cast<int64_t>(c));
+      }
+
+      retval = GrB_Vector_free(&CDLP);
       CHECK_EQ(retval, 0);
 
       retval = LAGraph_Delete(&G, msg);

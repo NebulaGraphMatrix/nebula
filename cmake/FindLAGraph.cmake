@@ -60,7 +60,7 @@ get_filename_component(LAGRAPHX_LIBRARY ${LAGRAPHX_LIBRARY} REALPATH)
 #   LAGRAPH_VERSION
 #   ${LAGRAPH_LIBRARY}
 #   )
-set(LAGRAPH_LIBRARIES ${LAGRAPH_LIBRARY} ${LAGRAPHX_LIBRARY})
+set(LAGRAPH_LIBRARIES ${LAGRAPHX_LIBRARY} ${LAGRAPH_LIBRARY})
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(
