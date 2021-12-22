@@ -2826,7 +2826,7 @@ FunctionManager::FunctionManager() {
                                        dsts.data(),
                                        weights.data(),
                                        static_cast<GrB_Index>(edgeList.size()),
-                                       GrB_SECOND_UINT32);
+                                       GrB_LOR);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval;
         return Value::kNullBadData;
@@ -2989,7 +2989,7 @@ FunctionManager::FunctionManager() {
     attr.maxArity_ = 2;
     attr.isPure_ = true;
     attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
-      if (args.size() != 1 || !args[0].get().isList() || !args[1].get().isList()) {
+      if (args.size() != 2 || !args[0].get().isList() || !args[1].get().isList()) {
         return Value::kNullBadData;
       }
       auto edgeList = args[0].get().getList().values;
@@ -3025,6 +3025,8 @@ FunctionManager::FunctionManager() {
         LOG(ERROR) << "retval: " << retval;
         return Value::kNullBadData;
       }
+
+      // LAGraph_Matrix_print(A, 3, ::stderr, msg);
 
       retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
       if (retval != 0) {
