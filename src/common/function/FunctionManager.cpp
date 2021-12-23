@@ -34,6 +34,71 @@ extern "C" {
 
 namespace nebula {
 
+bool prepareEdges(const std::vector<Value> &edgeList,
+                  std::vector<GrB_Index> *srcs,
+                  std::vector<GrB_Index> *dsts,
+                  GrB_Index *maxVid,
+                  std::unordered_map<GrB_Index, Value> *idMap = nullptr) {
+  srcs->reserve(edgeList.size());
+  dsts->reserve(edgeList.size());
+  std::unordered_map<Value, GrB_Index> vids;
+  *maxVid = 0UL;
+  for (auto &value : edgeList) {
+    if (!value.isEdge()) {
+      return false;
+    }
+    auto &edge = value.getEdge();
+
+    GrB_Index src, dst;
+    if (vids.count(edge.src)) {
+      src = vids[edge.src];
+    } else {
+      auto id = (*maxVid)++;
+      if (idMap) idMap->emplace(id, edge.src);
+      vids.emplace(edge.src, id);
+    }
+
+    if (vids.count(edge.dst)) {
+      dst = vids[edge.dst];
+    } else {
+      auto id = (*maxVid)++;
+      if (idMap) idMap->emplace(id, edge.dst);
+      vids.emplace(edge.dst, id);
+    }
+
+    if (edge.type > 0) {
+      srcs->emplace_back(src);
+      dsts->emplace_back(dst);
+    } else {
+      srcs->emplace_back(dst);
+      dsts->emplace_back(src);
+    }
+  }
+  CHECK_LT(*maxVid, GrB_INDEX_MAX);
+  return true;
+}
+
+bool prepareVertices(const std::vector<Value> &vertices,
+                     std::vector<GrB_Index> *srcs,
+                     std::unordered_map<GrB_Index, Value> *idMap) {
+  srcs->reserve(vertices.size());
+  for (auto &v : vertices) {
+    // TODO(yee): optimization
+    bool found = false;
+    for (auto &p : *idMap) {
+      if (p.second == v) {
+        srcs->emplace_back(p.first);
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // static
 FunctionManager &FunctionManager::instance() {
   static FunctionManager instance;
@@ -2736,9 +2801,9 @@ FunctionManager::FunctionManager() {
       }
 
       // collect each edge info
-      int64_t maxVid = 0;
+      uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
         return Value::kNullBadData;
       }
 
@@ -2748,7 +2813,7 @@ FunctionManager::FunctionManager() {
       LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
-      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
                    << ", max GrB: " << GrB_INDEX_MAX;
@@ -2800,10 +2865,10 @@ FunctionManager::FunctionManager() {
       auto edgeList = args[0].get().getList().values;
 
       // collect each edge info
-      int64_t maxVid = 0;
+      uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      std::unordered_map<GrB_Index, uint64_t> idMap;
-      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
+      std::unordered_map<GrB_Index, Value> idMap;
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
         return Value::kNullBadData;
       }
 
@@ -2813,7 +2878,7 @@ FunctionManager::FunctionManager() {
       LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
-      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
                    << ", max GrB: " << GrB_INDEX_MAX;
@@ -2841,8 +2906,20 @@ FunctionManager::FunctionManager() {
       GrB_Vector parents = NULL;
       GrB_Vector levels = NULL;
 
-      auto src = args[1].get().getInt() % GrB_INDEX_MAX;
-      idMap.emplace(src, args[1].get().getInt());
+      auto srcValue = args[1].get();
+      GrB_Index src;
+      auto find = [&]() {
+        for (auto &p : idMap) {
+          if (p.second == srcValue) {
+            src = p.first;
+            return true;
+          }
+        }
+        return false;
+      };
+      if (!find()) {
+        return Value::kNullBadData;
+      }
       retval = LAGraph_BreadthFirstSearch(&levels, &parents, G, src, true, msg);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
@@ -2872,7 +2949,7 @@ FunctionManager::FunctionManager() {
         m.kvs.emplace("level", Value(lvl));
         auto iter = idMap.find(parent);
         CHECK(iter != idMap.end());
-        m.kvs.emplace("parent", Value(static_cast<int64_t>(iter->second)));
+        m.kvs.emplace("parent", iter->second);
         result.values.emplace_back(std::move(m));
       }
 
@@ -2906,9 +2983,9 @@ FunctionManager::FunctionManager() {
       auto edgeList = args[0].get().getList().values;
 
       // collect each edge info
-      int64_t maxVid = 0;
+      uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
         return Value::kNullBadData;
       }
 
@@ -2918,7 +2995,7 @@ FunctionManager::FunctionManager() {
       LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
-      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
                    << ", max GrB: " << GrB_INDEX_MAX;
@@ -2995,9 +3072,10 @@ FunctionManager::FunctionManager() {
       auto edgeList = args[0].get().getList().values;
 
       // collect each edge info
-      int64_t maxVid = 0;
+      uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      std::unordered_map<GrB_Index, Value> idMap;
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
         return Value::kNullBadData;
       }
 
@@ -3007,7 +3085,7 @@ FunctionManager::FunctionManager() {
       LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
-      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
                    << ", max GrB: " << GrB_INDEX_MAX;
@@ -3026,9 +3104,13 @@ FunctionManager::FunctionManager() {
         return Value::kNullBadData;
       }
 
-      // LAGraph_Matrix_print(A, 3, ::stderr, msg);
-
       retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
+      if (retval != 0) {
+        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
+        return Value::kNullBadData;
+      }
+
+      retval = LAGraph_Property_AT(G, msg);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
         return Value::kNullBadData;
@@ -3036,7 +3118,7 @@ FunctionManager::FunctionManager() {
 
       auto &srcValues = args[1].get().getList().values;
       std::vector<GrB_Index> sources;
-      if (!prepareVertices(srcValues, &sources)) {
+      if (!prepareVertices(srcValues, &sources, &idMap)) {
         return Value::kNullBadData;
       }
 
@@ -3088,9 +3170,9 @@ FunctionManager::FunctionManager() {
       auto edgeList = args[0].get().getList().values;
 
       // collect each edge info
-      int64_t maxVid = 0;
+      uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (!FunctionManager::prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
         return Value::kNullBadData;
       }
 
@@ -3100,7 +3182,7 @@ FunctionManager::FunctionManager() {
       LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
-      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid + 1, maxVid + 1);
+      int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
       if (retval != 0) {
         LOG(ERROR) << "retval: " << retval << ", maxVid:" << maxVid
                    << ", max GrB: " << GrB_INDEX_MAX;
@@ -3169,59 +3251,6 @@ FunctionManager::FunctionManager() {
   }
 }  // NOLINT
 
-bool FunctionManager::prepareEdges(const std::vector<Value> &edgeList,
-                                   std::vector<uint64_t> *srcs,
-                                   std::vector<uint64_t> *dsts,
-                                   int64_t *maxVid,
-                                   std::unordered_map<uint64_t, uint64_t> *idMap) {
-  srcs->reserve(edgeList.size());
-  dsts->reserve(edgeList.size());
-  for (auto &value : edgeList) {
-    if (!value.isEdge()) {
-      return false;
-    }
-    auto &edge = value.getEdge();
-    if (!edge.src.isInt() || !edge.dst.isInt()) {
-      return false;
-    }
-    auto src = edge.src.getInt() % GrB_INDEX_MAX;
-    auto dst = edge.dst.getInt() % GrB_INDEX_MAX;
-    if (idMap) {
-      idMap->emplace(src, edge.src.getInt());
-      idMap->emplace(dst, edge.dst.getInt());
-    }
-    if (edge.type > 0) {
-      srcs->emplace_back(src);
-      dsts->emplace_back(dst);
-    } else {
-      srcs->emplace_back(dst);
-      dsts->emplace_back(src);
-    }
-    auto big = static_cast<int64_t>(std::max(src, dst));
-    if (big > *maxVid) {
-      *maxVid = big;
-    }
-  }
-  return true;
-}
-
-bool FunctionManager::prepareVertices(const std::vector<Value> &vertices,
-                                      std::vector<uint64_t> *srcs,
-                                      std::unordered_map<uint64_t, uint64_t> *idMap) {
-  srcs->reserve(vertices.size());
-  for (auto &v : vertices) {
-    if (!v.isInt()) {
-      return false;
-    }
-    auto vid = v.getInt();
-    auto id = vid % GrB_INDEX_MAX;
-    srcs->emplace_back(id);
-    if (idMap) {
-      idMap->emplace(id, vid);
-    }
-  }
-  return true;
-}
 // static
 StatusOr<FunctionManager::Function> FunctionManager::get(const std::string &func, size_t arity) {
   auto result = instance().getInternal(func, arity);
