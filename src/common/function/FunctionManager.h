@@ -78,6 +78,8 @@ class FunctionManager final {
    */
   FunctionManager();
 
+  ~FunctionManager();
+
   static FunctionManager &instance();
 
   StatusOr<const FunctionAttributes> getInternal(std::string func, size_t arity) const;

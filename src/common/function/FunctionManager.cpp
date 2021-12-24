@@ -53,17 +53,17 @@ bool prepareEdges(const std::vector<Value> &edgeList,
     if (vids.count(edge.src)) {
       src = vids[edge.src];
     } else {
-      auto id = (*maxVid)++;
-      if (idMap) idMap->emplace(id, edge.src);
-      vids.emplace(edge.src, id);
+      src = (*maxVid)++;
+      if (idMap) idMap->emplace(src, edge.src);
+      vids.emplace(edge.src, src);
     }
 
     if (vids.count(edge.dst)) {
       dst = vids[edge.dst];
     } else {
-      auto id = (*maxVid)++;
-      if (idMap) idMap->emplace(id, edge.dst);
-      vids.emplace(edge.dst, id);
+      dst = (*maxVid)++;
+      if (idMap) idMap->emplace(dst, edge.dst);
+      vids.emplace(edge.dst, dst);
     }
 
     if (edge.type > 0) {
@@ -529,6 +529,8 @@ StatusOr<Value::Type> FunctionManager::getReturnType(const std::string &funcName
 }
 
 FunctionManager::FunctionManager() {
+  char msg[LAGRAPH_MSG_LEN];
+  LAGraph_Init(msg);
   {
     // absolute value
     auto &attr = functions_["abs"];
@@ -2808,9 +2810,9 @@ FunctionManager::FunctionManager() {
       }
 
       char msg[LAGRAPH_MSG_LEN];
+
       LAGraph_Graph G = NULL;
 
-      LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
       int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
@@ -2848,7 +2850,6 @@ FunctionManager::FunctionManager() {
       }
 
       G = NULL;
-      LAGraph_Finalize(msg);
 
       return Value(static_cast<int64_t>(numTriangles));
     };
@@ -2873,9 +2874,9 @@ FunctionManager::FunctionManager() {
       }
 
       char msg[LAGRAPH_MSG_LEN];
+
       LAGraph_Graph G = NULL;
 
-      LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
       int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
@@ -2927,29 +2928,33 @@ FunctionManager::FunctionManager() {
       }
 
       GrB_Index n;
-      retval = GrB_Vector_size(&n, parents);
+      retval = GrB_Matrix_nrows(&n, G->A);
       CHECK_EQ(retval, 0);
 
       List result;
       result.values.reserve(n);
       for (auto i = 0ul; i < n; ++i) {
+        Value v = idMap.find(i)->second;
+        Value level = Value::kNullValue;
+        Value parent = Value::kNullValue;
         int64_t lvl;
         retval = GrB_Vector_extractElement_INT64(&lvl, levels, i);
-        if (retval != 0) {
-          return Value::kNullBadData;
+        if (retval == 0) {
+          level = Value(lvl);
         }
 
-        int64_t parent;
-        retval = GrB_Vector_extractElement_INT64(&parent, parents, i);
-        if (retval != 0) {
-          return Value::kNullBadData;
+        int64_t p;
+        retval = GrB_Vector_extractElement_INT64(&p, parents, i);
+        if (retval == 0) {
+          auto iter = idMap.find(p);
+          CHECK(iter != idMap.end());
+          parent = iter->second;
         }
 
         Map m;
-        m.kvs.emplace("level", Value(lvl));
-        auto iter = idMap.find(parent);
-        CHECK(iter != idMap.end());
-        m.kvs.emplace("parent", iter->second);
+        m.kvs.emplace("vertex", v);
+        m.kvs.emplace("level", level);
+        m.kvs.emplace("parent", parent);
         result.values.emplace_back(std::move(m));
       }
 
@@ -2965,7 +2970,6 @@ FunctionManager::FunctionManager() {
       }
 
       G = NULL;
-      LAGraph_Finalize(msg);
 
       return Value(std::move(result));
     };
@@ -2985,14 +2989,15 @@ FunctionManager::FunctionManager() {
       // collect each edge info
       uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      std::unordered_map<GrB_Index, Value> idMap;
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
         return Value::kNullBadData;
       }
 
       char msg[LAGRAPH_MSG_LEN];
+
       LAGraph_Graph G = NULL;
 
-      LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
       int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
@@ -3022,7 +3027,21 @@ FunctionManager::FunctionManager() {
 
       GrB_Vector pathLength = NULL;
 
-      auto src = args[1].get().getInt() % GrB_INDEX_MAX;
+      auto srcValue = args[1].get().getInt();
+      GrB_Index src;
+      auto find = [&]() {
+        for (auto &p : idMap) {
+          if (p.second == srcValue) {
+            src = p.first;
+            return true;
+          }
+        }
+        return false;
+      };
+      if (!find()) {
+        return Value::kNullBadData;
+      }
+
       auto delta = args[2].get().getInt();
       retval = LAGraph_SingleSourceShortestPath(&pathLength, G, src, delta, true, msg);
       if (retval != 0) {
@@ -3036,13 +3055,19 @@ FunctionManager::FunctionManager() {
       List result;
       result.values.reserve(n);
       for (auto i = 0ul; i < n; ++i) {
+        Value v = idMap.find(i)->second;
         int64_t len;
+        Value length = Value::kNullValue;
         retval = GrB_Vector_extractElement_INT64(&len, pathLength, i);
-        if (retval != 0) {
-          return Value::kNullBadData;
+        if (retval == 0) {
+          length = Value(len);
         }
 
-        result.values.emplace_back(len);
+        Map m;
+        m.kvs.emplace("vertex", v);
+        m.kvs.emplace("length", length);
+
+        result.values.emplace_back(std::move(m));
       }
 
       retval = GrB_Vector_free(&pathLength);
@@ -3055,7 +3080,6 @@ FunctionManager::FunctionManager() {
       }
 
       G = NULL;
-      LAGraph_Finalize(msg);
 
       return Value(std::move(result));
     };
@@ -3080,9 +3104,9 @@ FunctionManager::FunctionManager() {
       }
 
       char msg[LAGRAPH_MSG_LEN];
+
       LAGraph_Graph G = NULL;
 
-      LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
       int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
@@ -3152,7 +3176,6 @@ FunctionManager::FunctionManager() {
       }
 
       G = NULL;
-      LAGraph_Finalize(msg);
 
       return Value(std::move(result));
     };
@@ -3172,14 +3195,13 @@ FunctionManager::FunctionManager() {
       // collect each edge info
       uint64_t maxVid = 0;
       std::vector<GrB_Index> srcs, dsts;
-      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid)) {
+      std::unordered_map<GrB_Index, Value> idMap;
+      if (!prepareEdges(edgeList, &srcs, &dsts, &maxVid, &idMap)) {
         return Value::kNullBadData;
       }
 
       char msg[LAGRAPH_MSG_LEN];
-      LAGraph_Graph G = NULL;
 
-      LAGraph_Init(msg);
       GrB_Matrix A = NULL;
 
       int retval = GrB_Matrix_new(&A, GrB_UINT32, maxVid, maxVid);
@@ -3201,12 +3223,6 @@ FunctionManager::FunctionManager() {
         return Value::kNullBadData;
       }
 
-      retval = LAGraph_New(&G, &A, GrB_UINT32, LAGRAPH_ADJACENCY_DIRECTED, msg);
-      if (retval != 0) {
-        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
-        return Value::kNullBadData;
-      }
-
       GrB_Vector CDLP = NULL;
       GrB_Type CDLP_type = NULL;
       auto itermax = args[1].get().getInt();
@@ -3225,31 +3241,31 @@ FunctionManager::FunctionManager() {
       List result;
       result.values.reserve(n);
       for (auto i = 0ul; i < n; ++i) {
+        Value cdlp = Value::kNullValue;
         uint64_t c;
         retval = GrB_Vector_extractElement_UINT64(&c, CDLP, i);
-        if (retval != 0) {
-          return Value::kNullBadData;
+        if (retval == 0) {
+          cdlp = Value(static_cast<int64_t>(c));
         }
 
-        result.values.emplace_back(static_cast<int64_t>(c));
+        result.values.emplace_back(cdlp);
       }
 
       retval = GrB_Vector_free(&CDLP);
       CHECK_EQ(retval, 0);
 
-      retval = LAGraph_Delete(&G, msg);
-      if (retval != 0) {
-        LOG(ERROR) << "retval: " << retval << ", msg: " << msg;
-        return Value::kNullBadData;
-      }
-
-      G = NULL;
-      LAGraph_Finalize(msg);
+      retval = GrB_Matrix_free(&A);
+      CHECK_EQ(retval, 0);
 
       return Value(std::move(result));
     };
   }
 }  // NOLINT
+
+FunctionManager::~FunctionManager() {
+  char msg[LAGRAPH_MSG_LEN];
+  LAGraph_Finalize(msg);
+}
 
 // static
 StatusOr<FunctionManager::Function> FunctionManager::get(const std::string &func, size_t arity) {
