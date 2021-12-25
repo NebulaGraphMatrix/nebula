@@ -665,7 +665,7 @@ class CreateGraph final : public SingleDependencyNode {
 
  private:
   CreateGraph(QueryContext* qctx, PlanNode* input, std::string name)
-      : SingleDependencyNode(qctx, Kind::kCreateTag, input), name_(std::move(name)) {}
+      : SingleDependencyNode(qctx, Kind::kCreateGraph, input), name_(std::move(name)) {}
 
   std::string name_;
 };
