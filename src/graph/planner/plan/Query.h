@@ -1351,7 +1351,7 @@ class AppendVertices final : public GetVertices {
   Expression* vFilter_;
 };
 
-class FromGraph final : public SingleDependencyNode {
+class FromGraph final : public SingleInputNode {
  public:
   static FromGraph* make(QueryContext* qctx,
                          PlanNode* input,
@@ -1365,7 +1365,7 @@ class FromGraph final : public SingleDependencyNode {
 
  private:
   FromGraph(QueryContext* qctx, PlanNode* input, const std::string& name, Expression* expr)
-      : SingleDependencyNode(qctx, Kind::kFromGraph, input), name_(name), expr_(expr) {}
+      : SingleInputNode(qctx, Kind::kFromGraph, input), name_(name), expr_(expr) {}
 
   std::string name_;
   Expression* expr_{nullptr};

@@ -20,7 +20,7 @@ folly::Future<Status> FromGraphExecutor::execute() {
 
   DataSet ds;
   List row;
-  QueryExpressionContext qec;
+  QueryExpressionContext qec(qctx_->ectx());
   row.values.emplace_back(Expression::eval(fg->expr(), qec));
   ds.rows.emplace_back(std::move(row));
   ds.colNames = fg->colNames();

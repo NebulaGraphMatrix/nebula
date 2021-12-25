@@ -18,8 +18,8 @@ clang:
 			-DENABLE_COVERAGE=on \
 			-DENABLE_ASAN=off \
 			-DBUILD_SHARED_LIBS=ON \
-			-DGRAPHBLAS_ROOT=$$HOME/Workspace/GraphBLAS/install \
-			-DLAGRAPH_ROOT=$$HOME/Workspace/LAGraph/build/install \
+			-DGRAPHBLAS_ROOT=$$HOME/Workspace/GraphBLAS/release-install \
+			-DLAGRAPH_ROOT=$$HOME/Workspace/LAGraph/release-install \
 			-GNinja \
 			-B build;
 
