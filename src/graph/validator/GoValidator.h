@@ -12,6 +12,7 @@
 
 namespace nebula {
 namespace graph {
+
 class GoValidator final : public Validator {
  public:
   using VertexProp = nebula::storage::cpp2::VertexProp;
@@ -46,6 +47,16 @@ class GoValidator final : public Validator {
   YieldColumns* inputPropCols_{nullptr};
   std::unordered_map<std::string, YieldColumn*> propExprColMap_;
 };
+
+class FromGraphValidator final : public Validator {
+ public:
+  FromGraphValidator(Sentence* sentence, QueryContext* context) : Validator(sentence, context) {}
+
+ private:
+  Status validateImpl() override;
+  Status toPlan() override;
+};
+
 }  // namespace graph
 }  // namespace nebula
 #endif

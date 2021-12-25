@@ -13,19 +13,17 @@ QueryContext::QueryContext(RequestContextPtr rctx,
                            meta::IndexManager* im,
                            storage::StorageClient* storage,
                            meta::MetaClient* metaClient,
-                           CharsetInfo* charsetInfo,
-                           GraphCacheMap* const graphMap)
+                           CharsetInfo* charsetInfo)
     : rctx_(std::move(rctx)),
       sm_(DCHECK_NOTNULL(sm)),
       im_(DCHECK_NOTNULL(im)),
       storageClient_(DCHECK_NOTNULL(storage)),
       metaClient_(DCHECK_NOTNULL(metaClient)),
-      charsetInfo_(DCHECK_NOTNULL(charsetInfo)),
-      graphMap_(DCHECK_NOTNULL(graphMap)) {
+      charsetInfo_(DCHECK_NOTNULL(charsetInfo)) {
   init();
 }
 
-QueryContext::QueryContext() : graphMap_(nullptr) { init(); }
+QueryContext::QueryContext() { init(); }
 
 void QueryContext::init() {
   objPool_ = std::make_unique<ObjectPool>();

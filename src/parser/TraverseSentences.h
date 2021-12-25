@@ -471,5 +471,22 @@ class GetSubgraphSentence final : public Sentence {
   std::unique_ptr<BothInOutClause> both_;
   std::unique_ptr<YieldClause> yield_;
 };
+
+class FromGraphSentence final : public Sentence {
+ public:
+  FromGraphSentence(std::string* name, Expression* expr)
+      : Sentence(Kind::kFromGraph), name_(name), expr_(expr) {}
+
+  const std::string& name() const { return *name_; }
+  Expression* expr() const { return expr_.get(); }
+
+  std::string toString() const override;
+
+ private:
+  std::unique_ptr<std::string> name_;
+  std::unique_ptr<Expression> expr_;
+};
+
 }  // namespace nebula
+
 #endif  // PARSER_TRAVERSESENTENCES_H_

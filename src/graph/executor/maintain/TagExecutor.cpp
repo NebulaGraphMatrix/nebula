@@ -162,8 +162,7 @@ folly::Future<Status> CreateGraphExecutor::execute() {
     return Status::Error("graph `%s' existed!", node->name().c_str());
   }
 
-  auto graphCache = std::make_shared<GraphCache>(value.getList());
-  qctx_->graphMap()->emplace(node->name(), graphCache);
+  GraphCache::instance().add(node->name(), value.getList());
 
   return Status::OK();
 }

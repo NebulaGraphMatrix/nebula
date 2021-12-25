@@ -23,6 +23,7 @@ extern "C" {
 #include "common/datatypes/Set.h"
 #include "common/datatypes/Vertex.h"
 #include "common/expression/Expression.h"
+#include "common/function/GraphCache.h"
 #include "common/geo/GeoFunction.h"
 #include "common/geo/io/wkb/WKBReader.h"
 #include "common/geo/io/wkb/WKBWriter.h"
@@ -345,6 +346,7 @@ std::unordered_map<std::string, std::vector<TypeSignature>> FunctionManager::typ
     {"relationships",
      {
          TypeSignature({Value::Type::PATH}, Value::Type::LIST),
+         TypeSignature({Value::Type::STRING}, Value::Type::LIST),
      }},
     {"head",
      {
@@ -2293,6 +2295,13 @@ FunctionManager::FunctionManager() {
     attr.body_ = [](const auto &args) -> Value {
       switch (args[0].get().type()) {
         case Value::Type::NULLVALUE: {
+          return Value::kNullValue;
+        }
+        case Value::Type::STRING: {
+          auto name = args[0].get().getStr();
+          if (GraphCache::instance().exists(name)) {
+            return GraphCache::instance().edges(name);
+          }
           return Value::kNullValue;
         }
         case Value::Type::PATH: {

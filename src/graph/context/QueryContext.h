@@ -12,12 +12,12 @@
 #include "common/charset/Charset.h"
 #include "common/cpp/helpers.h"
 #include "common/datatypes/Value.h"
+#include "common/function/GraphCache.h"
 #include "common/meta/IndexManager.h"
 #include "common/meta/SchemaManager.h"
 #include "graph/context/ExecutionContext.h"
 #include "graph/context/Symbols.h"
 #include "graph/context/ValidateContext.h"
-#include "graph/service/GraphCache.h"
 #include "graph/service/RequestContext.h"
 #include "graph/util/IdGenerator.h"
 #include "parser/SequentialSentences.h"
@@ -48,8 +48,7 @@ class QueryContext {
                meta::IndexManager* im,
                storage::StorageClient* storage,
                meta::MetaClient* metaClient,
-               CharsetInfo* charsetInfo,
-               GraphCacheMap* const graphMap);
+               CharsetInfo* charsetInfo);
 
   virtual ~QueryContext() = default;
 
@@ -102,16 +101,7 @@ class QueryContext {
     return ectx_->exist(param) && (ectx_->getValue(param).type() != Value::Type::DATASET);
   }
 
-  bool existGraph(const std::string& name) const {
-    return graphMap_ && graphMap_->find(name) != graphMap_->end();
-  }
-
-  GraphCacheMap* graphMap() const { return graphMap_; }
-
-  GraphCache* graph(const std::string& name) const {
-    CHECK(existGraph(name));
-    return (*graphMap_)[name].get();
-  }
+  bool existGraph(const std::string& name) const { return GraphCache::instance().exists(name); }
 
  private:
   void init();
@@ -133,8 +123,6 @@ class QueryContext {
   std::unique_ptr<SymbolTable> symTable_;
 
   std::atomic<bool> killed_{false};
-
-  GraphCacheMap* const graphMap_;
 };
 
 }  // namespace graph

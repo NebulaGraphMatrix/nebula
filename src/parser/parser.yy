@@ -352,7 +352,7 @@ static constexpr size_t kCommentLengthLimit = 256;
 
 %type <sentence> maintain_sentence
 %type <sentence> create_space_sentence describe_space_sentence drop_space_sentence
-%type <sentence> create_tag_sentence create_edge_sentence create_graph_sentence
+%type <sentence> create_tag_sentence create_edge_sentence create_graph_sentence from_graph_sentence
 %type <sentence> alter_tag_sentence alter_edge_sentence
 %type <sentence> drop_tag_sentence drop_edge_sentence
 %type <sentence> describe_tag_sentence describe_edge_sentence
@@ -2397,6 +2397,7 @@ create_tag_sentence
 /**
  * CREATE GRAPH g { MATCH ()-[e:like]-() RETURN e UNION MATCH ()-[e:serve]-() RETURN e }
  * FROM g YIELD cdlp(relationships(g), nodes(g))
+ *    relationships($$)
  */
 create_graph_sentence
     : KW_CREATE KW_GRAPH name_label L_BRACE set_sentence R_BRACE {
@@ -2408,6 +2409,11 @@ create_graph_sentence
     /* TODO(yee): handle sequential sentences */
     ;
 
+from_graph_sentence
+    : KW_FROM name_label KW_YIELD function_call_expression {
+        $$ = new FromGraphSentence($2, $4);
+    }
+    ;
 
 alter_tag_sentence
     : KW_ALTER KW_TAG name_label alter_schema_opt_list {
@@ -2874,6 +2880,7 @@ traverse_sentence
     | show_queries_sentence { $$ = $1; }
     | kill_query_sentence { $$ = $1; }
     | describe_user_sentence { $$ = $1; }
+    | from_graph_sentence { $$ = $1; }
     ;
 
 piped_sentence

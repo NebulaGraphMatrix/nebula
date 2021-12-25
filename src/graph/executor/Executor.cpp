@@ -72,6 +72,7 @@
 #include "graph/executor/query/DataCollectExecutor.h"
 #include "graph/executor/query/DedupExecutor.h"
 #include "graph/executor/query/FilterExecutor.h"
+#include "graph/executor/query/FromGraphExecutor.h"
 #include "graph/executor/query/GetEdgesExecutor.h"
 #include "graph/executor/query/GetNeighborsExecutor.h"
 #include "graph/executor/query/GetVerticesExecutor.h"
@@ -254,6 +255,9 @@ Executor *Executor::makeExecutor(QueryContext *qctx, const PlanNode *node) {
     }
     case PlanNode::Kind::kCreateGraph: {
       return pool->add(new CreateGraphExecutor(node, qctx));
+    }
+    case PlanNode::Kind::kFromGraph: {
+      return pool->add(new FromGraphExecutor(node, qctx));
     }
     case PlanNode::Kind::kCreateTag: {
       return pool->add(new CreateTagExecutor(node, qctx));

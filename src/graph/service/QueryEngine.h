@@ -16,7 +16,6 @@
 #include "common/meta/SchemaManager.h"
 #include "common/network/NetworkUtils.h"
 #include "graph/optimizer/Optimizer.h"
-#include "graph/service/GraphCache.h"
 #include "graph/service/RequestContext.h"
 #include "interface/gen-cpp2/GraphService.h"
 
@@ -51,8 +50,6 @@ class QueryEngine final : public cpp::NonCopyable, public cpp::NonMovable {
   std::unique_ptr<thread::GenericWorker> memoryMonitorThread_;
   meta::MetaClient* metaClient_{nullptr};
   CharsetInfo* charsetInfo_{nullptr};
-
-  nebula::graph::GraphCacheMap graphMap_;
 };
 
 }  // namespace graph

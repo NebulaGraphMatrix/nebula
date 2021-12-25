@@ -120,6 +120,7 @@ Status PermissionCheck::permissionCheck(ClientSession *session,
     case Sentence::Kind::kDescribeTagIndex:
     case Sentence::Kind::kDescribeEdgeIndex:
     case Sentence::Kind::kGo:
+    case Sentence::Kind::kFromGraph:
     case Sentence::Kind::kSet:
     case Sentence::Kind::kPipe:
     case Sentence::Kind::kMatch:

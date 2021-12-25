@@ -1350,6 +1350,27 @@ class AppendVertices final : public GetVertices {
 
   Expression* vFilter_;
 };
+
+class FromGraph final : public SingleDependencyNode {
+ public:
+  static FromGraph* make(QueryContext* qctx,
+                         PlanNode* input,
+                         const std::string& name,
+                         Expression* expr) {
+    return qctx->objPool()->add(new FromGraph(qctx, input, name, expr));
+  }
+
+  const std::string& name() const { return name_; }
+  Expression* expr() const { return expr_; }
+
+ private:
+  FromGraph(QueryContext* qctx, PlanNode* input, const std::string& name, Expression* expr)
+      : SingleDependencyNode(qctx, Kind::kFromGraph, input), name_(name), expr_(expr) {}
+
+  std::string name_;
+  Expression* expr_{nullptr};
+};
+
 }  // namespace graph
 }  // namespace nebula
 #endif  // GRAPH_PLANNER_PLAN_QUERY_H_

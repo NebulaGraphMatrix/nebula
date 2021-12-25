@@ -299,5 +299,39 @@ Status GoValidator::buildColumns() {
   return Status::OK();
 }
 
+Status FromGraphValidator::validateImpl() {
+  auto s = static_cast<const FromGraphSentence*>(sentence());
+  if (!GraphCache::instance().exists(s->name())) {
+    return Status::SemanticError("`%s' not exists!", s->name().c_str());
+  }
+
+  auto labelExprs = ExpressionUtils::collectAll(s->expr(), {Expression::Kind::kLabel});
+  for (auto e : labelExprs) {
+    auto labelExpr = static_cast<const LabelExpression*>(e);
+    if (labelExpr->name() != s->name()) {
+      return Status::SemanticError("Could not use other graphs: `%s'", labelExpr->name().c_str());
+    }
+  }
+
+  return Status::OK();
+}
+
+Status FromGraphValidator::toPlan() {
+  auto s = static_cast<const FromGraphSentence*>(sentence());
+
+  auto* pool = qctx_->objPool();
+  auto matcher = [](const Expression* e) -> bool { return e->kind() == Expression::Kind::kLabel; };
+  auto rewriter = [&pool](const Expression* e) -> Expression* {
+    DCHECK(e->kind() == Expression::Kind::kLabel);
+    return ConstantExpression::make(pool, static_cast<const LabelExpression*>(e)->name());
+  };
+
+  auto expr = RewriteVisitor::transform(s->expr(), std::move(matcher), std::move(rewriter));
+
+  root_ = FromGraph::make(qctx_, nullptr, s->name(), expr);
+  tail_ = root_;
+  return Status::OK();
+}
+
 }  // namespace graph
 }  // namespace nebula

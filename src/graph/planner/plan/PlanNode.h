@@ -65,6 +65,7 @@ class PlanNode {
     kDataCollect,
     kLeftJoin,
     kInnerJoin,
+    kFromGraph,
 
     // Logic
     kStart,

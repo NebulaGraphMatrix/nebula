@@ -265,4 +265,14 @@ std::string GetSubgraphSentence::toString() const {
   }
   return buf;
 }
+
+std::string FromGraphSentence::toString() const {
+  std::stringstream ss;
+  ss << "FROM " << *DCHECK_NOTNULL(name_);
+  if (expr_) {
+    ss << " YIELD " << expr_->toString();
+  }
+  return ss.str();
+}
+
 }  // namespace nebula

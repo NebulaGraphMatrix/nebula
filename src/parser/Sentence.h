@@ -133,6 +133,7 @@ class Sentence {
     kKillQuery,
     kShowMetaLeader,
     kCreateGraph,
+    kFromGraph,
   };
 
   Kind kind() const { return kind_; }
