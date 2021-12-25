@@ -252,6 +252,9 @@ Executor *Executor::makeExecutor(QueryContext *qctx, const PlanNode *node) {
     case PlanNode::Kind::kShowCreateSpace: {
       return pool->add(new ShowCreateSpaceExecutor(node, qctx));
     }
+    case PlanNode::Kind::kCreateGraph: {
+      return pool->add(new CreateGraphExecutor(node, qctx));
+    }
     case PlanNode::Kind::kCreateTag: {
       return pool->add(new CreateTagExecutor(node, qctx));
     }

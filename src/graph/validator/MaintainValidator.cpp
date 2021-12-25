@@ -610,5 +610,24 @@ Status ShowFTIndexesValidator::toPlan() {
   tail_ = root_;
   return Status::OK();
 }
+
+Status CreateGraphValidator::validateImpl() {
+  auto s = static_cast<const CreateGraphSentence *>(sentence());
+  if (qctx_->existGraph(s->name())) {
+    return Status::Error("Graph `%s' existed!", s->name().c_str());
+  }
+  return Status::OK();
+}
+
+Status CreateGraphValidator::toPlan() {
+  auto s = static_cast<const CreateGraphSentence *>(sentence());
+  auto v = makeValidator(s->sentence(), qctx_);
+  NG_RETURN_IF_ERROR(v->validate());
+
+  root_ = CreateGraph::make(qctx_, v->root(), s->name());
+  tail_ = v->tail();
+  return Status::OK();
+}
+
 }  // namespace graph
 }  // namespace nebula

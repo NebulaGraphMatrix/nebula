@@ -422,6 +422,7 @@ class DropFTIndexValidator final : public Validator {
 
   Status toPlan() override;
 };
+
 class ShowFTIndexesValidator final : public Validator {
  public:
   ShowFTIndexesValidator(Sentence* sentence, QueryContext* context)
@@ -430,6 +431,15 @@ class ShowFTIndexesValidator final : public Validator {
  private:
   Status validateImpl() override;
 
+  Status toPlan() override;
+};
+
+class CreateGraphValidator final : public Validator {
+ public:
+  CreateGraphValidator(Sentence* sentence, QueryContext* context) : Validator(sentence, context) {}
+
+ private:
+  Status validateImpl() override;
   Status toPlan() override;
 };
 

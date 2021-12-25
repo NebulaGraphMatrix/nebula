@@ -83,6 +83,8 @@ std::unique_ptr<Validator> Validator::makeValidator(Sentence* sentence, QueryCon
       return std::make_unique<CreateTagValidator>(sentence, context);
     case Sentence::Kind::kCreateEdge:
       return std::make_unique<CreateEdgeValidator>(sentence, context);
+    case Sentence::Kind::kCreateGraph:
+      return std::make_unique<CreateGraphValidator>(sentence, context);
     case Sentence::Kind::kDescribeSpace:
       return std::make_unique<DescSpaceValidator>(sentence, context);
     case Sentence::Kind::kDescribeTag:

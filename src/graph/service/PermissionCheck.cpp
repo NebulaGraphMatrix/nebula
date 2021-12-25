@@ -14,7 +14,7 @@ namespace graph {
  *               kBalance, kAdmin, kConfig, kIngest, kDownload
  * Read schema : kDescribeTag, kDescribeEdge,
  *               kDescribeTagIndex, kDescribeEdgeIndex
- * Write schema : kCreateTag, kAlterTag, kCreateEdge,
+ * Write schema : kCreateTag, kAlterTag, kCreateEdge, kCreateGraph
  *                kAlterEdge, kDropTag, kDropEdge,
  *                kCreateTagIndex, kCreateEdgeIndex, kDropTagIndex,
  * kDropEdgeIndex, Read user : Write user : kCreateUser, kDropUser, kAlterUser,
@@ -79,6 +79,7 @@ Status PermissionCheck::permissionCheck(ClientSession *session,
     case Sentence::Kind::kAlterEdge:
     case Sentence::Kind::kDropTag:
     case Sentence::Kind::kDropEdge:
+    case Sentence::Kind::kCreateGraph:
     case Sentence::Kind::kCreateTagIndex:
     case Sentence::Kind::kCreateEdgeIndex:
     case Sentence::Kind::kCreateFTIndex:

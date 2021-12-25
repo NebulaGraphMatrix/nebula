@@ -655,6 +655,21 @@ class ShowFTIndexes final : public SingleInputNode {
       : SingleInputNode(qctx, Kind::kShowFTIndexes, input) {}
 };
 
+class CreateGraph final : public SingleDependencyNode {
+ public:
+  static CreateGraph* make(QueryContext* qctx, PlanNode* input, std::string name) {
+    return qctx->objPool()->add(new CreateGraph(qctx, input, std::move(name)));
+  }
+
+  const std::string& name() const { return name_; }
+
+ private:
+  CreateGraph(QueryContext* qctx, PlanNode* input, std::string name)
+      : SingleDependencyNode(qctx, Kind::kCreateTag, input), name_(std::move(name)) {}
+
+  std::string name_;
+};
+
 }  // namespace graph
 }  // namespace nebula
 #endif  // GRAPH_PLANNER_PLAN_MAINTAIN_H_

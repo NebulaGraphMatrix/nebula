@@ -1001,6 +1001,7 @@ class CreateFTIndexSentence final : public Sentence {
   std::unique_ptr<std::string> schemaName_;
   std::unique_ptr<NameLabelList> fields_;
 };
+
 class DropFTIndexSentence final : public Sentence {
  public:
   explicit DropFTIndexSentence(std::string *indexName) {
@@ -1020,6 +1021,22 @@ class ShowFTIndexesSentence final : public Sentence {
  public:
   ShowFTIndexesSentence() { kind_ = Kind::kShowFTIndexes; }
   std::string toString() const override;
+};
+
+class CreateGraphSentence final : public Sentence {
+ public:
+  CreateGraphSentence(std::string *name, Sentence *sentence)
+      : Sentence(Kind::kCreateGraph),
+        name_(DCHECK_NOTNULL(name)),
+        sentence_(DCHECK_NOTNULL(sentence)) {}
+
+  Sentence *sentence() const { return sentence_.get(); }
+  const std::string &name() const { return *name_; }
+  std::string toString() const override;
+
+ private:
+  std::unique_ptr<std::string> name_;
+  std::unique_ptr<Sentence> sentence_;
 };
 
 }  // namespace nebula

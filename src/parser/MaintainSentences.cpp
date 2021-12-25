@@ -506,4 +506,8 @@ std::string DropFTIndexSentence::toString() const {
 
 std::string ShowFTIndexesSentence::toString() const { return "SHOW FULLTEXT INDEXES"; }
 
+std::string CreateGraphSentence::toString() const {
+  return folly::sformat("CREATE GRAPH {} {{ {} }}", *name_, sentence_->toString());
+}
+
 }  // namespace nebula

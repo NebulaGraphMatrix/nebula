@@ -352,7 +352,7 @@ static constexpr size_t kCommentLengthLimit = 256;
 
 %type <sentence> maintain_sentence
 %type <sentence> create_space_sentence describe_space_sentence drop_space_sentence
-%type <sentence> create_tag_sentence create_edge_sentence
+%type <sentence> create_tag_sentence create_edge_sentence create_graph_sentence
 %type <sentence> alter_tag_sentence alter_edge_sentence
 %type <sentence> drop_tag_sentence drop_edge_sentence
 %type <sentence> describe_tag_sentence describe_edge_sentence
@@ -1389,7 +1389,7 @@ vid
             throw nebula::GraphParser::syntax_error(@1, "Parameter is not supported in vid");
         } else {
             throw nebula::GraphParser::syntax_error(@1, "Variable is not supported in vid");
-        } 
+        }
     }
     ;
 
@@ -2392,6 +2392,22 @@ create_tag_sentence
         $$ = new CreateTagSentence($4, $6, $9, $3);
     }
     ;
+
+
+/**
+ * CREATE GRAPH g { MATCH ()-[e:like]-() RETURN e UNION MATCH ()-[e:serve]-() RETURN e }
+ * FROM g YIELD cdlp(relationships(g), nodes(g))
+ */
+create_graph_sentence
+    : KW_CREATE KW_GRAPH name_label L_BRACE set_sentence R_BRACE {
+        $$ = new CreateGraphSentence($3, $5);
+    }
+    | KW_CREATE KW_GRAPH name_label L_BRACE match_sentences R_BRACE {
+        $$ = new CreateGraphSentence($3, $5);
+    }
+    /* TODO(yee): handle sequential sentences */
+    ;
+
 
 alter_tag_sentence
     : KW_ALTER KW_TAG name_label alter_schema_opt_list {
@@ -3783,6 +3799,7 @@ maintain_sentence
     | drop_space_sentence { $$ = $1; }
     | create_tag_sentence { $$ = $1; }
     | create_edge_sentence { $$ = $1; }
+    | create_graph_sentence { $$ = $1; }
     | alter_tag_sentence { $$ = $1; }
     | alter_edge_sentence { $$ = $1; }
     | describe_tag_sentence { $$ = $1; }
@@ -3884,6 +3901,7 @@ explain_sentence
         $$ = $1;
     }
     ;
+
 
 sentences
     : seq_sentences {

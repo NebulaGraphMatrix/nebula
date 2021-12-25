@@ -149,5 +149,24 @@ folly::Future<Status> AlterTagExecutor::execute() {
         return Status::OK();
       });
 }
+
+folly::Future<Status> CreateGraphExecutor::execute() {
+  SCOPED_TIMER(&execTime_);
+  auto node = asNode<CreateGraph>(this->node());
+  auto value = ectx_->getValue(node->dep()->outputVar());
+  if (!value.isList()) {
+    return Status::Error("Invalid graph data!");
+  }
+
+  if (qctx_->existGraph(node->name())) {
+    return Status::Error("graph `%s' existed!", node->name().c_str());
+  }
+
+  auto graphCache = std::make_shared<GraphCache>(value.getList());
+  qctx_->graphMap()->emplace(node->name(), graphCache);
+
+  return Status::OK();
+}
+
 }  // namespace graph
 }  // namespace nebula

@@ -49,7 +49,8 @@ void QueryEngine::execute(RequestContextPtr rctx) {
                                              indexManager_.get(),
                                              storage_.get(),
                                              metaClient_,
-                                             charsetInfo_);
+                                             charsetInfo_,
+                                             &graphMap_);
   auto* instance = new QueryInstance(std::move(qctx), optimizer_.get());
   instance->execute();
 }
