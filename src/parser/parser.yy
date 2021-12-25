@@ -352,7 +352,7 @@ static constexpr size_t kCommentLengthLimit = 256;
 
 %type <sentence> maintain_sentence
 %type <sentence> create_space_sentence describe_space_sentence drop_space_sentence
-%type <sentence> create_tag_sentence create_edge_sentence create_graph_sentence from_graph_sentence
+%type <sentence> create_tag_sentence create_edge_sentence create_graph_sentence drop_graph_sentence from_graph_sentence
 %type <sentence> alter_tag_sentence alter_edge_sentence
 %type <sentence> drop_tag_sentence drop_edge_sentence
 %type <sentence> describe_tag_sentence describe_edge_sentence
@@ -2395,9 +2395,9 @@ create_tag_sentence
 
 
 /**
- * CREATE GRAPH g { MATCH ()-[e:like]-() RETURN e UNION MATCH ()-[e:serve]-() RETURN e }
- * FROM g YIELD cdlp(relationships(g), nodes(g))
- *    relationships($$)
+ * CREATE GRAPH g { MATCH ()-[e:like]-() RETURN e UNION MATCH ()-[e:serve]-() RETURN e };
+ * FROM g YIELD cdlp(relationships(g), nodes(g));
+ * DROP GRAPH g;
  */
 create_graph_sentence
     : KW_CREATE KW_GRAPH name_label L_BRACE set_sentence R_BRACE {
@@ -2407,6 +2407,12 @@ create_graph_sentence
         $$ = new CreateGraphSentence($3, $5);
     }
     /* TODO(yee): handle sequential sentences */
+    ;
+
+drop_graph_sentence
+    : KW_DROP KW_GRAPH name_label {
+        $$ = new DropGraphSentence($3);
+    }
     ;
 
 from_graph_sentence
@@ -3807,6 +3813,7 @@ maintain_sentence
     | create_tag_sentence { $$ = $1; }
     | create_edge_sentence { $$ = $1; }
     | create_graph_sentence { $$ = $1; }
+    | drop_graph_sentence { $$ = $1; }
     | alter_tag_sentence { $$ = $1; }
     | alter_edge_sentence { $$ = $1; }
     | describe_tag_sentence { $$ = $1; }

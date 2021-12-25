@@ -319,6 +319,8 @@ Status FromGraphValidator::validateImpl() {
 Status FromGraphValidator::toPlan() {
   auto s = static_cast<const FromGraphSentence*>(sentence());
 
+  auto colName = s->expr()->toString();
+
   auto* pool = qctx_->objPool();
   auto matcher = [](const Expression* e) -> bool { return e->kind() == Expression::Kind::kLabel; };
   auto rewriter = [&pool](const Expression* e) -> Expression* {
@@ -330,6 +332,7 @@ Status FromGraphValidator::toPlan() {
 
   root_ = FromGraph::make(qctx_, nullptr, s->name(), expr);
   tail_ = root_;
+  root_->setColNames({colName});
   return Status::OK();
 }
 

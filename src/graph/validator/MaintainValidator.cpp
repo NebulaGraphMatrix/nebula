@@ -626,8 +626,18 @@ Status CreateGraphValidator::toPlan() {
 
   root_ = CreateGraph::make(qctx_, v->root(), s->name());
   tail_ = v->tail();
+  root_->setColNames({"AddedEdges"});
   return Status::OK();
 }
 
+Status DropGraphValidator::validateImpl() { return Status::OK(); }
+
+Status DropGraphValidator::toPlan() {
+  auto s = static_cast<const DropGraphSentence *>(sentence());
+  root_ = DropGraph::make(qctx_, nullptr, s->name());
+  tail_ = root_;
+  root_->setColNames({"DeletedEdges"});
+  return Status::OK();
+}
 }  // namespace graph
 }  // namespace nebula

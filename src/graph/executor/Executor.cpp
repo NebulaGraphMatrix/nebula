@@ -61,6 +61,7 @@
 #include "graph/executor/maintain/EdgeExecutor.h"
 #include "graph/executor/maintain/EdgeIndexExecutor.h"
 #include "graph/executor/maintain/FTIndexExecutor.h"
+#include "graph/executor/maintain/GraphExecutor.h"
 #include "graph/executor/maintain/TagExecutor.h"
 #include "graph/executor/maintain/TagIndexExecutor.h"
 #include "graph/executor/mutate/DeleteExecutor.h"
@@ -255,6 +256,9 @@ Executor *Executor::makeExecutor(QueryContext *qctx, const PlanNode *node) {
     }
     case PlanNode::Kind::kCreateGraph: {
       return pool->add(new CreateGraphExecutor(node, qctx));
+    }
+    case PlanNode::Kind::kDropGraph: {
+      return pool->add(new DropGraphExecutor(node, qctx));
     }
     case PlanNode::Kind::kFromGraph: {
       return pool->add(new FromGraphExecutor(node, qctx));

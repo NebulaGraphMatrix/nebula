@@ -150,22 +150,5 @@ folly::Future<Status> AlterTagExecutor::execute() {
       });
 }
 
-folly::Future<Status> CreateGraphExecutor::execute() {
-  SCOPED_TIMER(&execTime_);
-  auto node = asNode<CreateGraph>(this->node());
-  auto value = ectx_->getValue(node->dep()->outputVar());
-  if (!value.isList()) {
-    return Status::Error("Invalid graph data!");
-  }
-
-  if (qctx_->existGraph(node->name())) {
-    return Status::Error("graph `%s' existed!", node->name().c_str());
-  }
-
-  GraphCache::instance().add(node->name(), value.getList());
-
-  return Status::OK();
-}
-
 }  // namespace graph
 }  // namespace nebula

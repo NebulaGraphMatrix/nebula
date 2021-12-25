@@ -133,6 +133,7 @@ class Sentence {
     kKillQuery,
     kShowMetaLeader,
     kCreateGraph,
+    kDropGraph,
     kFromGraph,
   };
 

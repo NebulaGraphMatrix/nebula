@@ -94,6 +94,7 @@ class PlanNode {
     kDropTag,
     kDropEdge,
     kCreateGraph,
+    kDropGraph,
 
     // index related
     kCreateTagIndex,

@@ -62,15 +62,6 @@ class AlterTagExecutor final : public Executor {
   folly::Future<Status> execute() override;
 };
 
-// TODO(yee): Move this class to separate file
-class CreateGraphExecutor final : public Executor {
- public:
-  CreateGraphExecutor(const PlanNode *node, QueryContext *qctx)
-      : Executor("CreateGraphExecutor", node, qctx) {}
-
-  folly::Future<Status> execute() override;
-};
-
 }  // namespace graph
 }  // namespace nebula
 

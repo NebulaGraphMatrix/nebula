@@ -1039,6 +1039,18 @@ class CreateGraphSentence final : public Sentence {
   std::unique_ptr<Sentence> sentence_;
 };
 
+class DropGraphSentence final : public Sentence {
+ public:
+  explicit DropGraphSentence(std::string *name)
+      : Sentence(Kind::kDropGraph), name_(DCHECK_NOTNULL(name)) {}
+
+  const std::string &name() const { return *name_; }
+  std::string toString() const override;
+
+ private:
+  std::unique_ptr<std::string> name_;
+};
+
 }  // namespace nebula
 
 #endif  // PARSER_MAINTAINSENTENCES_H_

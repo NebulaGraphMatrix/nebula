@@ -18,9 +18,13 @@ folly::Future<Status> FromGraphExecutor::execute() {
     return error(Status::Error("graph `%s' not exists.", fg->name().c_str()));
   }
 
+  DataSet ds;
+  List row;
   QueryExpressionContext qec;
-  auto value = Expression::eval(fg->expr(), qec);
-  return finish(std::move(value));
+  row.values.emplace_back(Expression::eval(fg->expr(), qec));
+  ds.rows.emplace_back(std::move(row));
+  ds.colNames = fg->colNames();
+  return finish(Value(std::move(ds)));
 }
 
 }  // namespace graph

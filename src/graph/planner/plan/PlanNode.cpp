@@ -137,6 +137,8 @@ const char* PlanNode::toString(PlanNode::Kind kind) {
       return "DataCollect";
     case Kind::kCreateGraph:
       return "CreateGraph";
+    case Kind::kDropGraph:
+      return "DropGraph";
     case Kind::kFromGraph:
       return "FromGraph";
     // ACL

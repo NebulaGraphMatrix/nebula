@@ -443,6 +443,15 @@ class CreateGraphValidator final : public Validator {
   Status toPlan() override;
 };
 
+class DropGraphValidator final : public Validator {
+ public:
+  DropGraphValidator(Sentence* sentence, QueryContext* context) : Validator(sentence, context) {}
+
+ private:
+  Status validateImpl() override;
+  Status toPlan() override;
+};
+
 }  // namespace graph
 }  // namespace nebula
 #endif  // GRAPH_VALIDATOR_MAINTAINVALIDATOR_H_

@@ -28,6 +28,16 @@ class GraphCache final {
     graphMap_.insert_or_assign(name, std::make_shared<Cache>(std::move(edges)));
   }
 
+  std::size_t remove(const std::string& name) {
+    auto iter = graphMap_.find(name);
+    if (iter != graphMap_.end()) {
+      auto sz = iter->second->edges.size();
+      graphMap_.erase(iter);
+      return sz;
+    }
+    return 0UL;
+  }
+
   const List& edges(const std::string& name) const {
     CHECK(exists(name));
     return graphMap_.find(name)->second->edges;

@@ -510,4 +510,6 @@ std::string CreateGraphSentence::toString() const {
   return folly::sformat("CREATE GRAPH {} {{ {} }}", *name_, sentence_->toString());
 }
 
+std::string DropGraphSentence::toString() const { return folly::sformat("DROP GRAPH {}", *name_); }
+
 }  // namespace nebula
