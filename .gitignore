@@ -66,3 +66,5 @@ venv/
 
 #ctags
 .tags
+
+release-build/
