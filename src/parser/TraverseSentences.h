@@ -478,13 +478,13 @@ class FromGraphSentence final : public Sentence {
       : Sentence(Kind::kFromGraph), name_(name), expr_(expr) {}
 
   const std::string& name() const { return *name_; }
-  Expression* expr() const { return expr_.get(); }
+  Expression* expr() const { return expr_; }
 
   std::string toString() const override;
 
  private:
   std::unique_ptr<std::string> name_;
-  std::unique_ptr<Expression> expr_;
+  Expression* expr_;
 };
 
 }  // namespace nebula

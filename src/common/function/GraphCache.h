@@ -18,10 +18,12 @@ class GraphCache final {
   using GraphCacheMap = folly::ConcurrentHashMap<std::string, std::shared_ptr<Cache>>;
 
  public:
-  static GraphCache& instance() {
-    static GraphCache cache;
-    return cache;
-  }
+  static GraphCache& instance();
+
+  // static GraphCache& instance() {
+  //   static GraphCache cache;
+  //   return cache;
+  // }
 
   void add(const std::string& name, List edges) {
     // FIXME(yee): let it thread-safe
@@ -50,7 +52,7 @@ class GraphCache final {
 
   struct Cache {
     List edges;
-    std::unique_ptr<GraphMatrix> matrix;
+    // std::unique_ptr<GraphMatrix> matrix;
 
     explicit Cache(List es) : edges(es) {}
   };

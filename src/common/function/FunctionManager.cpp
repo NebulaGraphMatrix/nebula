@@ -531,8 +531,8 @@ StatusOr<Value::Type> FunctionManager::getReturnType(const std::string &funcName
 }
 
 FunctionManager::FunctionManager() {
-  char msg[LAGRAPH_MSG_LEN];
-  LAGraph_Init(msg);
+  char imsg[LAGRAPH_MSG_LEN];
+  LAGraph_Init(imsg);
   {
     // absolute value
     auto &attr = functions_["abs"];

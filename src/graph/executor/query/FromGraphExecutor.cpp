@@ -24,7 +24,10 @@ folly::Future<Status> FromGraphExecutor::execute() {
   row.values.emplace_back(Expression::eval(fg->expr(), qec));
   ds.rows.emplace_back(std::move(row));
   ds.colNames = fg->colNames();
-  return finish(Value(std::move(ds)));
+
+  ResultBuilder builder;
+  builder.value(std::move(ds)).iter(Iterator::Kind::kSequential);
+  return finish(builder.build());
 }
 
 }  // namespace graph

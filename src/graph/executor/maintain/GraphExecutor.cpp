@@ -55,7 +55,9 @@ folly::Future<Status> CreateGraphExecutor::execute() {
   res.colNames = node->colNames();
   res.rows.emplace_back(std::move(row));
 
-  return finish(Value(std::move(res)));
+  ResultBuilder builder;
+  builder.value(std::move(res)).iter(Iterator::Kind::kSequential);
+  return finish(builder.build());
 }
 
 folly::Future<Status> DropGraphExecutor::execute() {
@@ -69,7 +71,10 @@ folly::Future<Status> DropGraphExecutor::execute() {
   row.values.emplace_back(sz);
   DataSet ds({n->colNames()});
   ds.rows.emplace_back(std::move(row));
-  return finish(Value(std::move(ds)));
+
+  ResultBuilder builder;
+  builder.value(std::move(ds)).iter(Iterator::Kind::kSequential);
+  return finish(builder.build());
 }
 
 }  // namespace nebula::graph
