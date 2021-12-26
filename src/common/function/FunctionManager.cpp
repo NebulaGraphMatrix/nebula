@@ -2869,7 +2869,8 @@ FunctionManager::FunctionManager() {
     attr.maxArity_ = 2;
     attr.isPure_ = true;
     attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
-      if (args.size() != 2 || !args[0].get().isList() || !args[1].get().isInt()) {
+      if (args.size() != 2 || !args[0].get().isList() ||
+          !(args[1].get().isInt() || args[1].get().isStr())) {
         return Value::kNullBadData;
       }
       auto edgeList = args[0].get().getList().values;
@@ -2989,8 +2990,8 @@ FunctionManager::FunctionManager() {
     attr.maxArity_ = 3;
     attr.isPure_ = true;
     attr.body_ = [](const std::vector<std::reference_wrapper<const Value>> &args) -> Value {
-      if (args.size() != 3 || !args[0].get().isList() || !args[1].get().isInt() ||
-          !args[2].get().isInt()) {
+      if (args.size() != 3 || !args[0].get().isList() ||
+          !(args[1].get().isInt() || args[1].get().isStr()) || !args[2].get().isInt()) {
         return Value::kNullBadData;
       }
       auto edgeList = args[0].get().getList().values;
@@ -3036,7 +3037,7 @@ FunctionManager::FunctionManager() {
 
       GrB_Vector pathLength = NULL;
 
-      auto srcValue = args[1].get().getInt();
+      auto srcValue = args[1].get();
       GrB_Index src;
       auto find = [&]() {
         for (auto &p : idMap) {
